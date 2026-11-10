@@ -236,51 +236,57 @@
       setStatus(`${amount} ml hozzáadva! Ügyi vagy!`);
     });
 
-    // OneSignal Engedélykérés Gomb
-    document.getElementById('subscribe-btn').addEventListener('click', async () => {
-      try {
-        await OneSignal.Slidedown.promptPush();
-        setStatus("Engedélykérés elküldve a telefonnak!");
-      } catch (e) {
-        setStatus("Hiba az engedélykérésnél: " + e.message, true);
-      }
+    // OneSignal Engedélykérés Gomb (Biztonságos deferred meghívással)
+    document.getElementById('subscribe-btn').addEventListener('click', () => {
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      window.OneSignalDeferred.push(async function(OneSignal) {
+        try {
+          await OneSignal.Slidedown.promptPush();
+          setStatus("Engedélykérés elküldve a telefonnak!");
+        } catch (e) {
+          setStatus("Hiba az engedélykérésnél: " + e.message, true);
+        }
+      });
     });
 
-    // OneSignal Időzített Értesítés Küldése Gomb
-    document.getElementById('schedule-btn').addEventListener('click', async () => {
-      const delaySec = parseInt(document.getElementById('delay-input').value) || 60;
-      
-      try {
-        const subscriptionId = OneSignal.User.PushSubscription.id;
-        if (!subscriptionId) {
-          setStatus("Előbb engedélyezd az értesítéseket az 'Engedélyezés' gombbal!", true);
-          return;
-        }
+    // OneSignal Időzített Értesítés Küldése Gomb (Biztonságos deferred meghívással)
+    document.getElementById('schedule-btn').addEventListener('click', () => {
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      window.OneSignalDeferred.push(async function(OneSignal) {
+        const delaySec = parseInt(document.getElementById('delay-input').value) || 60;
+        
+        try {
+          const subscriptionId = OneSignal.User.PushSubscription.id;
+          if (!subscriptionId) {
+            setStatus("Előbb engedélyezd az értesítéseket az 'Engedélyezés' gombbal!", true);
+            return;
+          }
 
-        const response = await fetch('https://onesignal.com/api/v1/notifications', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Basic os_v2_app_lxbnircv5zgixov5fcwju6eyhkt5gpa3fxzu2m447hddsdslfeypepwxgetucl2zjbaqms6duvtougw7teb3a3dsltllwt3ocpb26gq'
-          },
-          body: JSON.stringify({
-            app_id: "5dc2d444-55ee-4c8b-babd-28ac9a78983a",
-            include_subscription_ids: [subscriptionId],
-            contents: { en: "Nínoo nínoo iszizni kell! Pitty pitty, igyál egy kis vizet babááám! 💧" },
-            headings: { en: "Ivás Emlékeztető 🚰" },
-            send_after: new Date(Date.now() + delaySec * 1000).toISOString()
-          })
-        });
+          const response = await fetch('https://onesignal.com/api/v1/notifications', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Basic os_v2_app_lxbnircv5zgixov5fcwju6eyhkt5gpa3fxzu2m447hddsdslfeypepwxgetucl2zjbaqms6duvtougw7teb3a3dsltllwt3ocpb26gq'
+            },
+            body: JSON.stringify({
+              app_id: "5dc2d444-55ee-4c8b-babd-28ac9a78983a",
+              include_subscription_ids: [subscriptionId],
+              contents: { en: "Nínoo nínoo iszizni kell! Pitty pitty, igyál egy kis vizet babááám! 💧" },
+              headings: { en: "Ivás Emlékeztető 🚰" },
+              send_after: new Date(Date.now() + delaySec * 1000).toISOString()
+            })
+          });
 
-        if (response.ok) {
-          setStatus(`Sikeresen időzítve ${delaySec / 60} perc múlva! Kiléphetsz az appból.`);
-        } else {
-          const err = await response.text();
-          setStatus("Hiba az időzítésnél: " + err, true);
+          if (response.ok) {
+            setStatus(`Sikeresen időzítve ${delaySec / 60} perc múlva! Kiléphetsz az appból.`);
+          } else {
+            const err = await response.text();
+            setStatus("Hiba az időzítésnél: " + err, true);
+          }
+        } catch (e) {
+          setStatus("Hiba: " + e.message, true);
         }
-      } catch (e) {
-        setStatus("Hiba: " + e.message, true);
-      }
+      });
     });
 
     document.getElementById('today-label').textContent = new Intl.DateTimeFormat('hu-HU', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
